@@ -75,25 +75,25 @@ def init_table(today):
             cur.execute(sql)
 
 
-def data_mining(dir, mand):
+def data_mining(dir, mand,today):
     config = {'host': "localhost", 'port': 3306, 'password': 'root', 'db': 'rodger', "user": 'root', 'charset': 'utf8'}
-    today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
     insert_data = {}
     for type in event_type_dic.values():
         insert_data[type] = []
     for i in get_files_name(dir):
         record = get_record(os.path.join(dir, i), mand)
         for data_time, user, event in record:
-            if not isinstance(user, dict):
-                user = json.loads(user)
-            event_type = event[0].split(',')[0]
-            event_name = event_type_dic[event_type]
-            insert_data[event_name].append((mand, user['aid'],
-                                            json.dumps(user['detail']).replace(' ', '').replace('[', '').replace(']',
-                                                                                                                 ''),
-                                            json.dumps(user['score']).replace(' ', '').replace('[', '').replace(']',
-                                                                                                                ''),
-                                            user['type'], user['sid'], user['uid'], data_time, event[0]))
+            if data_time.split(' ')[0] ==today:
+                if not isinstance(user, dict):
+                    user = json.loads(user)
+                event_type = event[0].split(',')[0]
+                event_name = event_type_dic[event_type]
+                insert_data[event_name].append((mand, user['aid'],
+                                                json.dumps(user['detail']).replace(' ', '').replace('[', '').replace(']',
+                                                                                                                     ''),
+                                                json.dumps(user['score']).replace(' ', '').replace('[', '').replace(']',
+                                                                                                                    ''),
+                                                user['type'], user['sid'], user['uid'], data_time, event[0]))
     for type in event_type_dic.values():
         table_name = type + '_' + today.replace('-', '_')
         insert_temp = '''
@@ -105,11 +105,14 @@ def data_mining(dir, mand):
 
 
 if __name__ == "__main__":
-    today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+    DaysAgo = (datetime.datetime.now() - datetime.timedelta(days=4))
+    # 转换为其他字符串格式
+    today = DaysAgo.strftime("%Y-%m-%d")
     init_table(today)
     config = {'host': "localhost", 'port': 3306, 'password': 'root', 'db': 'rodger', "user": 'root', 'charset': 'utf8'}
 
     mand = 'add_score'
-    # mand = 'batch_add_score'
+    mand1 = 'batch_add_score'
     dir = r"E:\sCrpDownload"
-    data_mining(dir,mand)
+    data_mining(dir,mand,today)
+    data_mining(dir,mand1,today)
