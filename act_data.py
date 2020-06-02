@@ -45,6 +45,7 @@ def get_record(file, mand):
 
 
 def get_files_name(dir):
+    files =''
     for root, dirs, files in os.walk(dir):  # 获取目录下所有文件信息
         files = files
     for file in files:
@@ -56,7 +57,6 @@ def get_files_name(dir):
 
 
 def init_table(today):
-    config = {'host': "localhost", 'port': 3306, 'password': 'root', 'db': 'rodger', "user": 'root', 'charset': 'utf8'}
     with pymysql.connect(**config) as cur:
         for event in event_type_dic.values():
             table_name = event + '_' + today.replace('-', '_')
@@ -80,7 +80,7 @@ def data_mining(dir, mand, today: str, update_time: str):
     for type in event_type_dic.values():
         insert_data[type] = []
     for i in get_files_name(dir):
-        record = get_record(os.path.join(dir, i), mand)
+        record = get_record(os.path.join(dir, i).replace('\\','/'), mand)
         for data_time, user, event in record:
             if data_time.split(' ')[0] == today:
                 if not isinstance(user, dict):
@@ -134,27 +134,21 @@ def db_config_generate():
 
 
 def db_config_read(config_dic):
+    config = configparser.ConfigParser()
     if not os.path.exists("database.conf"):
         db_config_generate()
-    config = configparser.ConfigParser()
     config.read('database.conf', encoding="utf-8")
-    if 'DB' not in config.sections():
-        db_config_generate()
-        config.read('database.conf', encoding="utf-8")
-    options = config.options('DB')
-    if not ('Host' in options and 'User' in options and 'Password' in options and 'Port' in options and
-            'Database' in options):
-        db_config_generate()
-        config.read('database.conf', encoding="utf-8")
     config_dic['db_host'] = config.get('DB', 'Host')
     config_dic['db_user'] = config.get('DB', 'User')
     config_dic['db_password'] = config.get('DB', 'Password')
     config_dic['db_port'] = config.getint('DB', 'Port')
     config_dic['db_name'] = config.get('DB', 'Database')
-    config_dic['today'] = config.get('TIME', 'Year') + '-' + config.get('TIME', 'Month') + '-' + config.get('TIME',
-                                                                                                            'Day')
-    config_dic['update_time'] = config_dic['today'] + " " + config.get('TIME', 'Hour') + ":" + \
-                                config.get('TIME', 'Minue') + ':' + config.get('TIME', 'Second')
+    config_dic['year'] = config.get('TIME','Year')
+    config_dic['month'] = config.get('TIME', 'Month')
+    config_dic['day'] = config.get('TIME', 'Day')
+    config_dic['hour'] = config.get('TIME', 'Hour')
+    config_dic['minue'] = config.get('TIME', 'Minue')
+    config_dic['second'] = config.get('TIME', 'Second')
     config_dic['dir'] = config.get("FILE", 'Dir')
     config_dic['mand'] = config.get("FILE", "Mand")
 
@@ -168,13 +162,16 @@ if __name__ == "__main__":
     # update_time = "2020-05-28 00:00:00"
     config_dic = {}
     db_config_read(config_dic)
-    today = config_dic['today']
-    update_time = config_dic['update_time']
-    dir = config_dic['dir']
-    init_table(today)
+    today = config_dic['year']+'-'+config_dic['month']+'-'+config_dic['day']
     config = {'host': config_dic['db_host'], 'port': config_dic['db_port'], 'password': config_dic['db_password'],
               'db': config_dic['db_name'], "user": config_dic['db_user'], 'charset': 'utf8'}
+    init_table(today)
     mand = 'add_score'
     mand1 = 'batch_add_score'
-    data_mining(dir, mand, today, update_time)
-    data_mining(dir, mand1, today, update_time)
+    for h in range(24):
+        hour = str(h).zfill(2)
+        dir_name = today.replace('-','')+hour
+        dir = os.path.join(config_dic['dir'],dir_name).replace('\\','/')
+        update_time = today+' '+hour+":"+"00:00"
+        data_mining(dir, mand, today, update_time)
+        data_mining(dir, mand1, today, update_time)
